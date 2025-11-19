@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  toon-gateway:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - UPSTREAM_URL=https://jsonplaceholder.typicode.com
+      - REDIS_URL=redis://redis-cache:6379
+      - CACHE_TTL=60
+    depends_on:
+      - redis-cache
+    restart: always
+
+  redis-cache:
+    image: redis:alpine
+    restart: always
+    command: redis-server --save "" --appendonly no

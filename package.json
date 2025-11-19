@@ -1,0 +1,26 @@
+{
+  "name": "toon-gateway",
+  "version": "1.0.0",
+  "description": "Reverse proxy transforming JSON to TOON format",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "node test-conformance.js"
+  },
+  "dependencies": {
+    "@toon-format/toon": "^1.0.0",
+    "compression": "^1.7.4",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "http-proxy-middleware": "^2.0.6",
+    "ioredis": "^5.3.2",
+    "morgan": "^1.10.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
