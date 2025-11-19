@@ -4,6 +4,8 @@ A high-performance NodeJS reverse proxy that transforms JSON responses into TOON
 
 This could be deployed on-cloud and perform as a middleware layer to auto-transform responses from APIs which return JSON, to TOON formatted response.
 
+You can learn more about TOON at https://toonformat.dev/ (Token-Oriented Object Notation - a compact, human-readable encoding of the JSON data model for AI LLM prompts).
+
 
 ## Features
 
