@@ -1,4 +1,4 @@
-# TOON Gateway 🚀
+# TOON Gateway
 
 A high-performance NodeJS reverse proxy that transforms JSON responses into TOON format with Redis caching.
 
