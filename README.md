@@ -1,6 +1,6 @@
 # TOON Gateway
 
-A NodeJS reverse proxy that transforms JSON responses into TOON format with Redis caching.
+A NodeJS reverse proxy, with Redis caching, that transforms remote APIs JSON responses into TOON format.
 
 This could be deployed on-cloud and perform as a middleware layer to auto-transform responses from APIs which return JSON, to TOON formatted response.
 
