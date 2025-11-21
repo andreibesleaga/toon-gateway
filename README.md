@@ -161,6 +161,7 @@ docker build -t toon-gateway .
 ## TOON Format Conformance
 
 This gateway uses the official [@toon-format/toon](https://www.npmjs.com/package/@toon-format/toon) reference implementation and passes **100% of the TOON v2.0 specification tests**:
+If running tests, you need to have also downloaded the official spec with fixtures tests (https://github.com/toon-format/spec).
 
 - **144/144 encode tests** (JSON → TOON)
 - **196/196 decode tests** (TOON → JSON)
