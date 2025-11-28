@@ -2,7 +2,7 @@
 
 A NodeJS reverse proxy, with Redis caching, that transforms remote APIs JSON responses into TOON format.
 
-This could be deployed on-cloud or embedded as part of an existing system, and perform as a middleware layer to auto-transform responses from APIs requests which return JSON, to TOON formatted response, to be fetched real-time into existing AI architectures LLMs, or saved for further processing.
+This could be deployed on-cloud or embedded as part of an existing system, and perform as a middleware, transparent gateway, layer, to auto-transform responses from APIs requests which return JSON, to TOON formatted response, to be fetched real-time into existing AI architectures LLMs, or saved for further processing.
 
 You can learn more about TOON at https://toonformat.dev/ (Token-Oriented Object Notation - a compact, human-readable encoding of the JSON data model for AI LLM prompts).
 
