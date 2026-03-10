@@ -1,8 +1,8 @@
 # TOON Gateway
 
-A high-performance NodeJS reverse proxy that transforms JSON responses into TOON format with Redis caching.
+A NodeJS reverse proxy, with Redis caching, that transforms remote APIs JSON responses into TOON format.
 
-This could be deployed on-cloud and perform as a middleware layer to auto-transform responses from APIs which return JSON, to TOON formatted response.
+This could be deployed on-cloud or embedded as part of an existing system, and perform as a middleware, transparent gateway, layer, to auto-transform responses from APIs requests which return JSON, to TOON formatted response, to be fetched real-time into existing AI architectures LLMs, or saved for further processing.
 
 You can learn more about TOON at https://toonformat.dev/ (Token-Oriented Object Notation - a compact, human-readable encoding of the JSON data model for AI LLM prompts).
 
@@ -161,6 +161,7 @@ docker build -t toon-gateway .
 ## TOON Format Conformance
 
 This gateway uses the official [@toon-format/toon](https://www.npmjs.com/package/@toon-format/toon) reference implementation and passes **100% of the TOON v2.0 specification tests**:
+If running tests, you need to have also downloaded the official spec with fixtures tests (https://github.com/toon-format/spec).
 
 - **144/144 encode tests** (JSON → TOON)
 - **196/196 decode tests** (TOON → JSON)
