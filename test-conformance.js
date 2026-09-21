@@ -7,7 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { encodeToToon } = require('./src/toon-codec');
+const { initToon, encodeToToon } = require('./src/toon-codec');
 
 const SPEC_DIR = path.join(__dirname, '../spec/tests/fixtures');
 const COLORS = {
@@ -236,7 +236,7 @@ class TestRunner {
 // Run tests
 if (require.main === module) {
     const runner = new TestRunner();
-    runner.run().then(exitCode => process.exit(exitCode));
+    initToon().then(() => runner.run()).then(exitCode => process.exit(exitCode));
 }
 
 module.exports = TestRunner;

@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOON Gateway — JSON APIs in, TOON out</title>
+<meta name="description" content="A reverse proxy that turns JSON API responses into TOON, the token-efficient format for LLM prompts. Live demo, docs and a JSON to TOON converter.">
+<link rel="icon" href="{{PREFIX}}/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{{PREFIX}}/landing.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="{{PREFIX}}/favicon.svg" alt="">TOON Gateway</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#try">Try it</a>
+      <a href="#api">API</a>
+      <a class="opt" href="#how">How it works</a>
+      <a class="opt" href="#deploy">Run your own</a>
+      <a href="{{REPO_URL}}" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap hero">
+  <div class="eyebrow">Reverse proxy · v{{VERSION}} · MIT</div>
+  <h1>JSON APIs in. TOON out. Fewer tokens for your LLM.</h1>
+  <p class="lede">TOON Gateway sits in front of any JSON API and returns the same data as
+    <a href="https://toonformat.dev/" rel="noopener">TOON</a> (Token-Oriented Object Notation), a compact,
+    human-readable encoding of the JSON data model built for LLM prompts. No client changes: point your
+    agent at the gateway instead of the API. Responses are cached in Redis.</p>
+  <div class="cta">
+    <a class="btn primary" href="#try">Convert JSON → TOON</a>
+    <a class="btn" href="{{REPO_URL}}" rel="noopener">Source on GitHub</a>
+    <span class="status" id="status" aria-live="polite"><span class="dot" id="status-dot"></span><span id="status-text">checking service…</span></span>
+  </div>
+
+  <div class="pair">
+    <div class="pane">
+      <h3>JSON from the API <span>114 chars minified</span></h3>
+<pre><code>[
+  { "id": 1, "name": "Alice", "role": "admin" },
+  { "id": 2, "name": "Bob",   "role": "user"  },
+  { "id": 3, "name": "Carol", "role": "user"  }
+]</code></pre>
+    </div>
+    <div class="pane">
+      <h3>TOON from the gateway <span>62 chars</span></h3>
+<pre><code>[3]{id,name,role}:
+  1,Alice,admin
+  2,Bob,user
+  3,Carol,user</code></pre>
+    </div>
+  </div>
+</div>
+
+<section id="try">
+  <div class="wrap">
+    <h2>Try it live</h2>
+    <p>Both tools below call this gateway's own API from your browser. Nothing you paste is stored.</p>
+
+    <div class="tabs" role="tablist" aria-label="Live tools">
+      <button class="tab" role="tab" id="tab-encode" aria-controls="panel-encode" aria-selected="true">JSON → TOON converter</button>
+      <button class="tab" role="tab" id="tab-proxy" aria-controls="panel-proxy" aria-selected="false" tabindex="-1">Proxy an API request</button>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-encode" aria-labelledby="tab-encode">
+      <div class="samples">Load a sample:
+        <button class="btn small" type="button" data-sample="users">Users table</button>
+        <button class="btn small" type="button" data-sample="order">Nested order</button>
+        <button class="btn small" type="button" data-sample="mixed">Mixed list</button>
+        <button class="btn small" type="button" data-sample="metrics">Time series</button>
+      </div>
+      <form id="encode-form" novalidate>
+        <div class="io">
+          <div>
+            <label class="lbl" for="json-in">JSON input</label>
+            <textarea id="json-in" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="encode-msg"></textarea>
+          </div>
+          <div>
+            <label class="lbl" for="toon-out">TOON output</label>
+            <pre class="out" id="toon-out" tabindex="0"><code id="toon-code"><span class="c">Press “Convert” to call POST {{PREFIX}}/encode</span></code></pre>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field"><label class="lbl" for="opt-delimiter">Delimiter</label>
+            <select id="opt-delimiter"><option value="comma">comma ,</option><option value="tab">tab ⇥</option><option value="pipe">pipe |</option></select></div>
+          <div class="field"><label class="lbl" for="opt-indent">Indent</label>
+            <select id="opt-indent"><option value="2">2 spaces</option><option value="4">4 spaces</option></select></div>
+          <div class="field"><label class="lbl" for="opt-folding">Key folding</label>
+            <select id="opt-folding"><option value="off">off</option><option value="safe">safe</option></select></div>
+          <button class="btn primary" type="submit" id="encode-btn">Convert</button>
+          <button class="btn" type="button" id="format-btn">Format JSON</button>
+          <button class="btn" type="button" id="copy-btn" disabled>Copy TOON</button>
+        </div>
+      </form>
+      <div class="msg" id="encode-msg" role="status"></div>
+      <div class="stats" id="stats" hidden>
+        <div class="stat"><b id="st-json">–</b><span>JSON characters (minified)</span></div>
+        <div class="stat"><b id="st-toon">–</b><span>TOON characters</span></div>
+        <div class="stat good"><b id="st-saved">–</b><span>smaller than JSON</span></div>
+        <div class="stat"><b id="st-time">–</b><span>round trip to the gateway</span></div>
+      </div>
+      <h4>The same call from a terminal</h4>
+<pre><code id="encode-curl">curl -X POST {{ORIGIN}}{{PREFIX}}/encode \
+  -H 'Content-Type: application/json' \
+  -d '[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]'</code></pre>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-proxy" aria-labelledby="tab-proxy" hidden>
+      <p class="panel-note">This instance proxies <code>{{UPSTREAM_URL}}</code>. Request any of its paths through the
+        gateway and the JSON comes back as TOON. Run it twice to see the Redis cache turn <code>MISS</code> into <code>HIT</code>.</p>
+      <form id="proxy-form">
+        <div class="row flush">
+          <div class="field grow"><label class="lbl" for="proxy-path">Path on the upstream API</label>
+            <input type="text" id="proxy-path" value="/todos?_limit=5" spellcheck="false" autocomplete="off" autocapitalize="off"></div>
+          <button class="btn primary" type="submit" id="proxy-btn">GET via gateway</button>
+        </div>
+        <div class="samples below">Examples:
+          <button class="btn small" type="button" data-path="/users">/users</button>
+          <button class="btn small" type="button" data-path="/posts/1">/posts/1</button>
+          <button class="btn small" type="button" data-path="/posts?userId=1">/posts?userId=1</button>
+          <button class="btn small" type="button" data-path="/todos?_limit=5">/todos?_limit=5</button>
+        </div>
+      </form>
+      <div class="hdrs" id="proxy-hdrs"></div>
+      <pre class="out spaced" id="proxy-out" tabindex="0"><code id="proxy-code"><span class="c">Response appears here</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="api">
+  <div class="wrap">
+    <h2>API</h2>
+    <p>Base URL: <code>{{ORIGIN}}</code>. No key or sign-up. Per IP: {{RATE_LIMIT_MAX}} requests per
+      {{RATE_LIMIT_WINDOW_MIN}} minutes, at most {{BURST_MAX}} in any {{BURST_WINDOW_SEC}} seconds, and {{ENCODE_MAX}} conversions per
+      {{RATE_LIMIT_WINDOW_MIN}} minutes. This page and <code>/health</code> don't count. Over the limit you get a <code>429</code>.</p>
+    <div class="tscroll"><table>
+      <thead><tr><th>Request</th><th>What it does</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /&lt;any path&gt;</code></td><td>Proxied to the upstream API. Methods allowed on this instance: {{ALLOWED_METHODS}}. JSON responses are converted to TOON; anything else passes through unchanged. Successful GETs are cached for {{CACHE_TTL}} s, unless the request carries credentials. Upstream responses over {{MAX_RESPONSE_MB}} MB are refused.</td><td><code>text/toon</code></td></tr>
+        <tr><td><code>POST {{PREFIX}}/encode</code></td><td>Converts the JSON document in the request body to TOON. Body up to 256 KB. Optional query: <code>delimiter=comma|tab|pipe</code>, <code>indent=1…8</code>, <code>keyFolding=off|safe</code>.</td><td><code>text/toon</code></td></tr>
+        <tr><td><code>GET /health</code></td><td>Liveness and cache state. <code>degraded</code> means Redis is down and requests are served uncached. Add <code>?strict=1</code> for a 503 in that case.</td><td><code>application/json</code></td></tr>
+        <tr><td><code>GET {{PREFIX}}/info</code></td><td>Version, upstream, cache TTL, rate limit and endpoint list for this instance.</td><td><code>application/json</code></td></tr>
+        <tr><td><code>GET /</code></td><td>This page. Non-browser clients (curl, agents) get a plain-text usage summary instead.</td><td><code>text/html</code> · <code>text/plain</code></td></tr>
+      </tbody>
+    </table></div>
+
+    <h4>Proxy a request</h4>
+<pre><code><span class="c"># upstream JSON, returned as TOON</span>
+curl -i {{ORIGIN}}/posts/1
+
+<span class="c"># HTTP/2 200
+# content-type: text/toon; charset=utf-8
+# x-cache: MISS          (HIT on the next call within {{CACHE_TTL}} s)</span>
+userId: 1
+id: 1
+title: sunt aut facere repellat provident occaecati excepturi optio reprehenderit
+body: "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum…"</code></pre>
+
+    <h4>Response headers</h4>
+    <div class="tscroll"><table>
+      <thead><tr><th>Header</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>Content-Type: text/toon</code></td><td>The body was converted. Any other type means the upstream did not return JSON and the body is untouched.</td></tr>
+        <tr><td><code>X-Cache: HIT</code></td><td>Served from Redis without contacting the upstream.</td></tr>
+        <tr><td><code>X-Cache: MISS</code></td><td>Fetched from the upstream, converted, then cached.</td></tr>
+        <tr><td><code>X-Cache: BYPASS</code></td><td>The request carried <code>Authorization</code>, <code>Cookie</code> or <code>X-API-Key</code>, so it was neither read from nor written to the shared cache.</td></tr>
+        <tr><td><code>X-Cache: UNAVAILABLE</code></td><td>Redis is down; the request was served uncached.</td></tr>
+        <tr><td><code>RateLimit-*</code></td><td>Remaining request budget and reset time for your IP.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4>Feed an LLM</h4>
+<pre><code><span class="c"># Python: fetch through the gateway, drop straight into a prompt</span>
+import requests
+data = requests.get("{{ORIGIN}}/users").text
+prompt = f"Here are the users in TOON format:\n\n{data}\n\nWho works at Romaguera-Crona?"</code></pre>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p>A transparent layer between your client and an API you already use. It never changes the request, only the
+      shape of a JSON response.</p>
+    <div class="arch">
+      <div><b>Request</b>Your client or agent calls the gateway with the API's own path and query.</div>
+      <div><b>Cache</b>For GETs, Redis is checked first. A hit returns TOON immediately.</div>
+      <div><b>Upstream</b>On a miss the request is forwarded to the configured API.</div>
+      <div><b>Transform</b>JSON is encoded with the official <code>@toon-format/toon</code> library, cached and returned.</div>
+    </div>
+    <h4>Why TOON</h4>
+    <p class="prose">JSON repeats every key on every row and spends tokens on braces and quotes. TOON states the
+      field names once, like a CSV header, then lists the rows, and keeps an explicit length so a model can check
+      it read everything. Uniform arrays of objects, the usual shape of API results, shrink the most; deeply
+      nested or irregular data shrinks less. It is lossless: TOON decodes back to the same JSON. See the
+      <a href="https://github.com/toon-format/spec" rel="noopener">specification</a> and
+      <a href="https://toonformat.dev/" rel="noopener">toonformat.dev</a>.</p>
+  </div>
+</section>
+
+<section id="deploy">
+  <div class="wrap">
+    <h2>Run your own</h2>
+    <p>This public instance points at a demo API. To put the gateway in front of your own API, run it yourself
+      and set <code>UPSTREAM_URL</code>.</p>
+<pre><code>git clone {{REPO_URL}}.git
+cd toon-gateway
+docker-compose up -d            <span class="c"># gateway on :3000 + Redis</span>
+curl http://localhost:3000/posts/1</code></pre>
+    <h4>Configuration</h4>
+    <div class="tscroll"><table>
+      <thead><tr><th>Variable</th><th>Purpose</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td><code>UPSTREAM_URL</code></td><td>The JSON API to put the gateway in front of</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
+        <tr><td><code>REDIS_URL</code></td><td>Redis connection string. Optional: without Redis the gateway runs uncached</td><td><code>redis://localhost:6379</code></td></tr>
+        <tr><td><code>CACHE_TTL</code></td><td>Seconds a converted response stays cached</td><td><code>300</code></td></tr>
+        <tr><td><code>PORT</code></td><td>Listening port</td><td><code>3000</code></td></tr>
+        <tr><td><code>RATE_LIMIT_MAX</code></td><td>Requests allowed per IP per window</td><td><code>100</code></td></tr>
+        <tr><td><code>RATE_LIMIT_WINDOW_MS</code></td><td>Rate-limit window in milliseconds</td><td><code>900000</code></td></tr>
+        <tr><td><code>RATE_LIMIT_BURST_MAX</code> · <code>RATE_LIMIT_BURST_WINDOW_MS</code></td><td>Short-window burst limit per IP</td><td><code>30</code> · <code>60000</code></td></tr>
+        <tr><td><code>ENCODE_RATE_LIMIT_MAX</code></td><td>Conversions per IP per window on <code>{{PREFIX}}/encode</code></td><td><code>60</code></td></tr>
+        <tr><td><code>ALLOWED_METHODS</code></td><td>HTTP methods the gateway accepts. Use <code>GET,HEAD,OPTIONS</code> for a read-only gateway</td><td>all standard methods</td></tr>
+        <tr><td><code>MAX_REQUEST_BYTES</code> · <code>MAX_RESPONSE_BYTES</code></td><td>Largest request body accepted and upstream response transformed</td><td><code>1048576</code> · <code>5242880</code></td></tr>
+        <tr><td><code>UPSTREAM_TIMEOUT_MS</code></td><td>How long to wait for the upstream before a <code>504</code></td><td><code>15000</code></td></tr>
+        <tr><td><code>CLIENT_IP_HEADER</code></td><td>Header your platform sets to the real client IP, used for rate limiting (e.g. <code>x-real-ip</code> on Railway)</td><td>unset</td></tr>
+        <tr><td><code>TRUST_PROXY</code></td><td>Proxy hops to trust for the client IP. Use <code>0</code> when exposed directly</td><td><code>1</code></td></tr>
+        <tr><td><code>NODE_ENV</code> · <code>LOG_LEVEL</code></td><td>Set <code>production</code> for JSON logs on stdout</td><td><code>development</code> · <code>info</code></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Deploying to Railway, Docker and other hosts is covered in
+      <a href="{{REPO_URL}}/blob/main/DEPLOYMENT.md" rel="noopener">DEPLOYMENT.md</a>; the full reference is the
+      <a href="{{REPO_URL}}#readme" rel="noopener">README</a>.</p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>TOON Gateway v{{VERSION}} · MIT License · by <a href="https://andreibesleaga.com" rel="noopener">Andrei Besleaga</a></span>
+    <span><a href="{{REPO_URL}}" rel="noopener">GitHub</a> · <a href="{{REPO_URL}}/issues" rel="noopener">Issues</a> · <a href="https://toonformat.dev/" rel="noopener">TOON format</a> · <a href="/health">Health</a></span>
+  </div>
+</footer>
+<script src="{{PREFIX}}/landing.js" defer></script>
+</body>
+</html>

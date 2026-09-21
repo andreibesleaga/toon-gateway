@@ -1,6 +1,11 @@
 # Dependencies
 node_modules/
-package-lock.json
+
+# live
+#public/
+#views/
+#DEPLOYMENT.md
+
 
 # Environment variables
 .env

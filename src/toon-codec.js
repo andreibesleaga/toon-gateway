@@ -1,9 +1,33 @@
 /**
  * TOON Format Encoder/Decoder
  * Uses the official @toon-format/toon reference implementation
+ *
+ * The reference implementation is published as an ES module only, so it is
+ * loaded once with a dynamic import() at startup (initToon) instead of
+ * require(). This keeps the gateway working on every supported Node version
+ * rather than depending on require(esm) support.
  */
 
-const toon = require('@toon-format/toon');
+let toon = null;
+
+/**
+ * Loads the TOON reference implementation. Must complete before
+ * encodeToToon/decodeFromToon are called.
+ * @returns {Promise<object>} the loaded @toon-format/toon module
+ */
+async function initToon() {
+    if (!toon) {
+        toon = await import('@toon-format/toon');
+    }
+    return toon;
+}
+
+function getToon() {
+    if (!toon) {
+        throw new Error('TOON codec not initialized: await initToon() first');
+    }
+    return toon;
+}
 
 /**
  * Encodes a JavaScript value to TOON format
@@ -16,7 +40,7 @@ const toon = require('@toon-format/toon');
  * @returns {string} TOON formatted string
  */
 function encodeToToon(data, options = {}) {
-    return toon.encode(data, options);
+    return getToon().encode(data, options);
 }
 
 /**
@@ -29,12 +53,13 @@ function encodeToToon(data, options = {}) {
  * @returns {any} JavaScript value
  */
 function decodeFromToon(toonString, options = {}) {
-    return toon.decode(toonString, options);
+    return getToon().decode(toonString, options);
 }
 
-module.exports = { 
-    encodeToToon, 
+module.exports = {
+    initToon,
+    encodeToToon,
     decodeFromToon,
-    // Export the toon module for advanced usage
-    toon
+    // Access the loaded toon module for advanced usage (after initToon)
+    getToon
 };

@@ -1,0 +1,50 @@
+TOON Gateway v{{VERSION}}
+=========================
+
+A reverse proxy that returns JSON API responses as TOON (Token-Oriented Object
+Notation), a compact, lossless encoding of the JSON data model for LLM prompts.
+Open this URL in a browser for the full docs and a live JSON -> TOON converter.
+
+Base URL : {{ORIGIN}}
+Upstream : {{UPSTREAM_URL}}
+Source   : {{REPO_URL}}
+Format   : https://toonformat.dev/
+Limits   : per IP {{RATE_LIMIT_MAX}} requests / {{RATE_LIMIT_WINDOW_MIN}} min, {{BURST_MAX}} / {{BURST_WINDOW_SEC}} s burst,
+           {{ENCODE_MAX}} conversions / {{RATE_LIMIT_WINDOW_MIN}} min. No key needed. Over the limit: 429.
+Methods  : {{ALLOWED_METHODS}}
+
+ENDPOINTS
+
+  GET  /<any path>          Proxied to the upstream API. JSON
+                            responses come back as text/toon; other content
+                            passes through. Successful GETs are cached {{CACHE_TTL}} s.
+  POST {{PREFIX}}/encode    Convert the JSON request body to TOON (max 256 KB).
+                            Query: delimiter=comma|tab|pipe  indent=1..8
+                                   keyFolding=off|safe
+  GET  /health              {"status":"healthy|degraded","redis":...}
+                            ?strict=1 returns 503 when the cache is down.
+  GET  {{PREFIX}}/info      Version, upstream, cache TTL, limits (JSON).
+
+EXAMPLES
+
+  curl -i {{ORIGIN}}/posts/1
+
+  curl -X POST {{ORIGIN}}{{PREFIX}}/encode \
+    -H 'Content-Type: application/json' \
+    -d '[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]'
+
+  [2]{id,name}:
+    1,Alice
+    2,Bob
+
+RESPONSE HEADERS
+
+  Content-Type: text/toon   the body was converted
+  X-Cache: HIT|MISS         served from Redis | fetched and then cached
+  X-Cache: BYPASS           request carried credentials, shared cache not used
+  X-Cache: UNAVAILABLE      cache down, served uncached
+  RateLimit-*               remaining budget for your IP
+
+RUN YOUR OWN (point it at your API with UPSTREAM_URL)
+
+  git clone {{REPO_URL}}.git && cd toon-gateway && docker-compose up -d

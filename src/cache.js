@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const Redis = require('ioredis');
 
 let redisConnected = false;
@@ -43,7 +44,9 @@ redis.on('reconnecting', () => {
     redisConnected = false;
 });
 
-const generateKey = (req) => `toon_cache:${req.method}:${req.originalUrl}`;
+// The URL is hashed so a client cannot choose key names or create oversized keys
+const generateKey = (req) =>
+    `toon_cache:${req.method}:${crypto.createHash('sha256').update(req.originalUrl).digest('hex')}`;
 
 const isRedisConnected = () => redisConnected;
 
