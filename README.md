@@ -251,6 +251,10 @@ For more information about TOON format, see:
 - [ ] Enable HTTPS/TLS termination
 - [ ] Configure log retention
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT
