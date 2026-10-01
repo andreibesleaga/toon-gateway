@@ -202,8 +202,12 @@ Structured logging with Winston:
 # Run with auto-reload
 npm run dev
 
-# Run TOON conformance tests
+# End-to-end tests (local stub upstream, no internet needed)
 npm test
+REDIS_URL=redis://localhost:6379 npm test   # also runs the cache tests
+
+# Run TOON conformance tests (needs the spec repo, see below)
+npm run test:conformance
 
 # Check syntax
 node --check src/app.js
@@ -212,10 +216,23 @@ node --check src/app.js
 docker build -t toon-gateway .
 ```
 
+## CI/CD
+
+GitHub Actions, each switchable without editing files:
+
+| Workflow | Runs | What it does | Pause automatic runs | Run manually |
+|---|---|---|---|---|
+| [CI](.github/workflows/ci.yml) | Every push and pull request | End-to-end tests on Node 20/22/24 with Redis, `npm audit`, TOON spec conformance, Docker image build and health check | `gh variable set CI_ENABLED --body false` | `gh workflow run ci.yml` |
+| [Deploy](.github/workflows/deploy.yml) | After CI passes on `main` | Deploys the tested commit to Railway, then checks the live health, version and encoder | `gh variable set AUTO_DEPLOY --body false` | `gh workflow run deploy.yml` (add `-f ref=<branch\|tag\|sha>` for another ref) |
+
+CI is permissive by default: only the end-to-end tests on Node 22 (the production runtime) can fail it and block a deploy; Node 20/24, the audit, conformance and the Docker check report warnings. `gh variable set STRICT_CI --body true` makes every check blocking. Without the `RAILWAY_TOKEN` secret, automatic deploys skip with a notice instead of failing.
+
+Undo any switch with `gh variable delete <NAME>`; turn a workflow off entirely with `gh workflow disable <file>` (and back on with `gh workflow enable <file>`). Setup of the `RAILWAY_TOKEN` secret: [DEPLOYMENT.md](DEPLOYMENT.md#automatic-deploys-github-actions).
+
 ## TOON Format Conformance
 
 This gateway uses the official [@toon-format/toon](https://www.npmjs.com/package/@toon-format/toon) reference implementation and passes **100% of the TOON v4.1 specification tests** (`@toon-format/toon` 4.1.1 against the spec's `v4.1.1` fixtures):
-If running tests, you need to have also downloaded the official spec with fixtures tests (https://github.com/toon-format/spec) into `../spec`, checked out at the tag the library targets: `git -C ../spec checkout v4.1.1`.
+If running tests, you need to have also downloaded the official spec with fixtures tests (https://github.com/toon-format/spec) into `../spec`, checked out at the tag the library targets: `git -C ../spec checkout v4.1.1` (or point `TOON_SPEC_DIR` at another checkout).
 
 - **179/179 encode tests** (JSON → TOON)
 - **359/359 decode tests** (TOON → JSON)

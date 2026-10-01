@@ -1,6 +1,6 @@
 {
   "name": "toon-gateway",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Reverse proxy transforming JSON to TOON format",
   "main": "src/app.js",
   "engines": {
@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "test": "node test-conformance.js"
+    "test": "node --test --test-reporter=spec test/gateway.test.js",
+    "test:conformance": "node test-conformance.js"
   },
   "dependencies": {
     "@toon-format/toon": "^4.1.1",

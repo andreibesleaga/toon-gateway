@@ -9,7 +9,8 @@ const fs = require('fs');
 const path = require('path');
 const { initToon, encodeToToon } = require('./src/toon-codec');
 
-const SPEC_DIR = path.join(__dirname, '../spec/tests/fixtures');
+// TOON_SPEC_DIR points at a checkout of https://github.com/toon-format/spec (default ../spec)
+const SPEC_DIR = path.join(process.env.TOON_SPEC_DIR || path.join(__dirname, '../spec'), 'tests/fixtures');
 const COLORS = {
     reset: '\x1b[0m',
     green: '\x1b[32m',
@@ -205,7 +206,7 @@ class TestRunner {
         }
 
         this.log('');
-        return this.stats.failed === 0 ? 0 : 1;
+        return this.stats.failed === 0 && this.stats.passed > 0 ? 0 : 1;
     }
 
     async run() {
@@ -213,7 +214,7 @@ class TestRunner {
             // Check if spec directory exists
             if (!fs.existsSync(SPEC_DIR)) {
                 this.log(`\n❌ Spec directory not found: ${SPEC_DIR}`, 'red');
-                this.log('Please ensure the spec repository is cloned at ../spec', 'yellow');
+                this.log('Clone https://github.com/toon-format/spec to ../spec or set TOON_SPEC_DIR', 'yellow');
                 return 1;
             }
 

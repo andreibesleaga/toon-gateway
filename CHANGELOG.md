@@ -2,6 +2,19 @@
 
 All notable changes to this project. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.1.1 - 2026-10-01
+
+### Fixed
+- Proxied responses were missing the gateway's own security headers (HSTS, CSP, `X-Frame-Options`), and an upstream could override others such as `Referrer-Policy`. The gateway's headers now always win.
+- An upstream response over `MAX_RESPONSE_BYTES` sent without `Content-Length` (streamed) crashed the gateway process. Upstream bodies are now buffered by the gateway itself with the cap enforced while streaming.
+- `429` responses from the burst and encode limiters had no `Retry-After`.
+- An upstream's own `X-Cache` header replaced the gateway's.
+
+### Added
+- Compressed upstream bodies (gzip, deflate, br) are decoded before conversion, with the decompressed size capped.
+- End-to-end test suite (`npm test`) against a local stub upstream; the conformance runner moved to `npm run test:conformance` and accepts `TOON_SPEC_DIR`.
+- GitHub Actions: CI on every push and pull request (tests on Node 20/22/24 with Redis, audit, spec conformance, Docker image check) and Deploy to Railway after CI passes on `main`. Permissive by default (only the Node 22 tests block; `STRICT_CI=true` makes every check blocking), automatic runs pausable with `CI_ENABLED=false` / `AUTO_DEPLOY=false`, both runnable by hand, deploy of any ref on demand, and deploys skip cleanly until `RAILWAY_TOKEN` is set. Dependabot updates for the actions.
+
 ## 1.1.0 - 2026-10-01
 
 Live at https://toon-gateway.up.railway.app.

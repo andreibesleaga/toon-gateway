@@ -37,6 +37,7 @@ const config = {
 // Upstream response headers that must not reach the client: they either
 // describe the upstream's infrastructure, or instruct the browser to act on
 // *this* origin on the upstream's behalf (cookies, reporting, alt-svc, HSTS).
+// The gateway's own security headers are restored afterwards (see below).
 const STRIPPED_RESPONSE_HEADERS = [
     'set-cookie', 'set-cookie2',
     'server', 'via', 'x-powered-by', 'x-aspnet-version', 'x-aspnetmvc-version',
@@ -74,6 +75,10 @@ const securityHeaders = () => [
     (req, res, next) => {
         res.setHeader('Permissions-Policy',
             'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()');
+        // Snapshot of exactly the headers set above. A proxied response gets
+        // the upstream's headers copied over these, so they are put back
+        // after scrubbing: the gateway's policy must win over the upstream's.
+        res.locals.ownSecurityHeaders = res.getHeaders();
         next();
     }
 ];
@@ -88,6 +93,12 @@ const clientIp = (req) => {
 };
 
 const tooMany = (req, res) => {
+    // Every limiter says when to retry, including the ones that send no
+    // RateLimit-* headers (burst, encode)
+    const resetTime = req.rateLimit && req.rateLimit.resetTime;
+    if (resetTime instanceof Date) {
+        res.setHeader('Retry-After', String(Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))));
+    }
     res.status(429).json({
         error: 'Too Many Requests',
         message: 'Too many requests from this IP, please try again later.'
@@ -167,6 +178,7 @@ const responseIsCacheable = (proxyRes) => {
 
 const scrubResponseHeaders = (res) => {
     STRIPPED_RESPONSE_HEADERS.forEach(name => res.removeHeader(name));
+    Object.entries(res.locals.ownSecurityHeaders || {}).forEach(([name, value]) => res.setHeader(name, value));
 };
 
 const validateUpstreamUrl = (value) => {

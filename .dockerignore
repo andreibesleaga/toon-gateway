@@ -9,3 +9,5 @@ logs
 *.md
 docker-compose.yml
 test-conformance.js
+test
+.github

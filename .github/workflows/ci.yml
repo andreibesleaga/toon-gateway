@@ -1,0 +1,123 @@
+# CI: tests, conformance and a Docker smoke test.
+#
+# Runs on pushes to any branch, on pull requests, and on demand (Actions tab ->
+# CI -> Run workflow, or `gh workflow run ci.yml`).
+#
+# Permissive by default: only the end-to-end tests on Node 22 (the version
+# production runs) can fail the workflow and so block a deploy. Everything else
+# (Node 20/24, npm audit, spec conformance, Docker image) reports a warning.
+#
+# Switches (repository variables, no file edits):
+#   gh variable set CI_ENABLED --body false   pause automatic runs (manual runs still work)
+#   gh variable set STRICT_CI --body true     make every check blocking
+#   gh variable delete <NAME>                 back to the default
+#   gh workflow disable ci.yml                turn the workflow off entirely
+
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (Node ${{ matrix.node }})
+    if: vars.CI_ENABLED != 'false' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Node 22 is what production runs; the other versions only warn
+    continue-on-error: ${{ matrix.node != 22 && vars.STRICT_CI != 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: Audit production dependencies
+        continue-on-error: ${{ vars.STRICT_CI != 'true' }}
+        run: npm audit --omit=dev --audit-level=high
+      - name: Syntax check
+        run: for f in src/*.js public/*.js test/*.js test-conformance.js; do node --check "$f"; done
+      - name: End-to-end tests
+        run: npm test
+        env:
+          REDIS_URL: redis://localhost:6379
+          REQUIRE_REDIS: '1'
+
+  conformance:
+    name: TOON spec conformance
+    if: vars.CI_ENABLED != 'false' || github.event_name == 'workflow_dispatch'
+    continue-on-error: ${{ vars.STRICT_CI != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Fetch the spec fixtures the installed library targets
+        run: |
+          # e.g. "^4.1.1" in @toon-format/toon's own package.json -> tag v4.1.1
+          SPEC=$(node -e "const fs=require('fs');const p=require.resolve('@toon-format/toon').replace(/dist[\\/].*$/,'package.json');console.log(JSON.parse(fs.readFileSync(p)).devDependencies['@toon-format/spec'].replace(/^[^0-9]*/,''))")
+          echo "TOON spec v$SPEC"
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "v$SPEC" https://github.com/toon-format/spec.git "$RUNNER_TEMP/spec"
+      - name: Conformance tests
+        run: npm run test:conformance
+        env:
+          TOON_SPEC_DIR: ${{ runner.temp }}/spec
+
+  docker:
+    name: Docker image
+    if: vars.CI_ENABLED != 'false' || github.event_name == 'workflow_dispatch'
+    continue-on-error: ${{ vars.STRICT_CI != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: docker build -t toon-gateway:ci .
+      - name: Run and check the container
+        run: |
+          docker run -d --name gw -p 3000:3000 -e REDIS_URL=redis://127.0.0.1:1 toon-gateway:ci
+          for _ in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' gw)" = healthy ] && break
+            sleep 2
+          done
+          docker inspect -f 'health={{.State.Health.Status}} user={{.Config.User}}' gw
+          test "$(docker inspect -f '{{.State.Health.Status}}' gw)" = healthy
+          test "$(docker inspect -f '{{.Config.User}}' gw)" = node
+          curl -fsS http://127.0.0.1:3000/health
+          curl -fsS -H 'Accept: text/html' -o /dev/null http://127.0.0.1:3000/
+          test "$(curl -fsS -X POST http://127.0.0.1:3000/__gateway/encode -H 'Content-Type: application/json' -d '[{"a":1},{"a":2}]' | head -1)" = '[2]{a}:'
+      - name: Stops cleanly
+        run: |
+          docker stop -t 15 gw
+          test "$(docker inspect -f '{{.State.ExitCode}}' gw)" = 0
+      - name: Logs on failure
+        if: failure()
+        run: docker logs gw || true

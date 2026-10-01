@@ -58,9 +58,32 @@ To put the gateway in front of another API, change `UPSTREAM_URL` and, if that A
 
 Build and deploy settings live on the Railway service, not in a file: builder `DOCKERFILE`, healthcheck path `/health` (60 s timeout), restart policy `ON_FAILURE` with 10 retries. `railway.json` is deprecated by Railway (no longer read after 2026-12-01) and is intentionally absent.
 
-## Deploying a new version
+## Automatic deploys (GitHub Actions)
 
-The service is deployed from a local checkout with the Railway CLI:
+Every push to `main` runs CI; when it passes, the Deploy workflow deploys that exact commit with `railway up` and then checks the live `/health`, that `/__gateway/info` reports the new `package.json` version, and that the encoder answers. Progress and history: GitHub → Actions, and the `production` environment on the repository page.
+
+One-time setup: a Railway **project token** for the production environment, stored as a GitHub secret. Project tokens can only be created in the dashboard: Railway → project `toon-gateway` → Settings → Tokens → environment `production` → Create. Then:
+
+```bash
+gh secret set RAILWAY_TOKEN -R andreibesleaga/toon-gateway    # paste the token when prompted
+```
+
+Switches (no file edits):
+
+```bash
+gh variable set AUTO_DEPLOY --body false -R andreibesleaga/toon-gateway   # pause automatic deploys
+gh variable delete AUTO_DEPLOY -R andreibesleaga/toon-gateway             # resume
+gh workflow run deploy.yml -R andreibesleaga/toon-gateway                 # deploy main now (works while paused)
+gh workflow run deploy.yml -f ref=v1.1.0 -R andreibesleaga/toon-gateway   # deploy another branch, tag or commit (e.g. a rollback)
+gh workflow disable deploy.yml -R andreibesleaga/toon-gateway             # turn the workflow off entirely
+gh workflow enable deploy.yml -R andreibesleaga/toon-gateway              # and back on
+```
+
+`CI_ENABLED` and `ci.yml` work the same way for the test workflow; `STRICT_CI=true` makes every CI check blocking (by default only the Node 22 tests are). Until `RAILWAY_TOKEN` is set, automatic deploys are skipped with a notice. A failed deployment never replaces the running one (Railway waits for `/health`), and the workflow run turns red.
+
+## Deploying a new version by hand
+
+The service can also be deployed from a local checkout with the Railway CLI:
 
 ```bash
 npm i -g @railway/cli && railway login

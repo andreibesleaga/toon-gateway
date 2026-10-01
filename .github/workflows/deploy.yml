@@ -1,0 +1,98 @@
+# Deploy to Railway after CI passes on main, or on demand.
+#
+# Automatic: runs when the CI workflow succeeds for a push to main, and deploys
+# exactly the commit CI tested. Without the RAILWAY_TOKEN secret it skips with
+# a notice instead of failing.
+# Manual: Actions tab -> Deploy -> Run workflow, or `gh workflow run deploy.yml`
+# (optionally `-f ref=<branch|tag|sha>`; a manual run does not wait for CI).
+#
+# Switches (repository variables, no file edits):
+#   gh variable set AUTO_DEPLOY --body false   pause automatic deploys (manual still works)
+#   gh variable delete AUTO_DEPLOY             resume
+#   gh workflow disable deploy.yml             turn the workflow off entirely
+#
+# Needs the repository secret RAILWAY_TOKEN: a Railway project token for the
+# production environment (Railway -> project -> Settings -> Tokens).
+# Optional variables: RAILWAY_SERVICE (default toon-gateway),
+# APP_URL (default https://toon-gateway.up.railway.app).
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to deploy
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Railway production
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (vars.AUTO_DEPLOY != 'false' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.APP_URL || 'https://toon-gateway.up.railway.app' }}
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || 'toon-gateway' }}
+      APP_URL: ${{ vars.APP_URL || 'https://toon-gateway.up.railway.app' }}
+      DEPLOY_REF: ${{ github.event.workflow_run.head_sha || inputs.ref || github.sha }}
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            echo "::error::Repository secret RAILWAY_TOKEN is not set (Railway project token for production)"
+            exit 1
+          else
+            echo "::notice::Skipping deploy: repository secret RAILWAY_TOKEN is not set"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.config.outputs.ready == 'true'
+        with:
+          ref: ${{ env.DEPLOY_REF }}
+      - uses: actions/setup-node@v7
+        if: steps.config.outputs.ready == 'true'
+        with:
+          node-version: 22
+      - name: Install the Railway CLI
+        if: steps.config.outputs.ready == 'true'
+        run: npm install -g @railway/cli@5
+      - name: Deploy
+        if: steps.config.outputs.ready == 'true'
+        # --ci streams the build and fails the step if the deployment fails
+        run: railway up --service "$RAILWAY_SERVICE" --ci -m "GitHub $(git rev-parse --short HEAD) ($GITHUB_EVENT_NAME)"
+      - name: Check the live service
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          for _ in $(seq 1 30); do
+            if curl -fsS "$APP_URL/health" >/dev/null 2>&1; then break; fi
+            sleep 5
+          done
+          curl -fsS "$APP_URL/health"; echo
+          LIVE=$(curl -fsS "$APP_URL/__gateway/info" | node -p "JSON.parse(require('fs').readFileSync(0)).version")
+          echo "package.json $VERSION, live $LIVE"
+          test "$LIVE" = "$VERSION"
+          test "$(curl -fsS -X POST "$APP_URL/__gateway/encode" -H 'Content-Type: application/json' -d '[{"a":1},{"a":2}]' | head -1)" = '[2]{a}:'

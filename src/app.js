@@ -4,7 +4,8 @@ const path = require('path');
 const express = require('express');
 const morgan = require('morgan');
 const compression = require('compression');
-const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware');
+const zlib = require('zlib');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const { redis, generateKey, isRedisConnected } = require('./cache');
 const { initToon, encodeToToon } = require('./toon-codec');
 const { createLanding, GATEWAY_PREFIX } = require('./landing');
@@ -165,26 +166,65 @@ const cacheMiddleware = async (req, res, next) => {
 };
 
 // Proxy Logic
-// http-proxy-middleware v3+ takes event handlers under `on`; the legacy
-// top-level onProxyRes/onError options are ignored, which with
-// selfHandleResponse leaves every request hanging.
-const transformResponse = responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
-    // Upstream headers were copied onto `res` just before this runs
+// The upstream body is buffered here, not with http-proxy-middleware's
+// responseInterceptor: the size cap has to stop a streamed response midway,
+// and the interceptor still fires on an aborted stream, writes headers twice
+// and crashes the process.
+
+// Hop-by-hop and framing headers are recomputed for the client. The gateway's
+// own X-Cache must not be replaced by an upstream cache's header.
+const NOT_COPIED_HEADERS = new Set([
+    'connection', 'keep-alive', 'transfer-encoding', 'te', 'trailer', 'upgrade',
+    'proxy-authenticate', 'proxy-authorization', 'content-length', 'content-encoding', 'x-cache'
+]);
+
+const DECODERS = {
+    gzip: zlib.gunzipSync,
+    'x-gzip': zlib.gunzipSync,
+    deflate: zlib.inflateSync,
+    br: zlib.brotliDecompressSync
+};
+
+const sendUpstreamResponse = async (body, proxyRes, req, res) => {
+    res.status(proxyRes.statusCode);
+    if (proxyRes.statusMessage) res.statusMessage = proxyRes.statusMessage;
+
+    // The upstream was asked for an uncompressed body; decode it anyway if it
+    // ignored that, with the output capped so a small compressed payload
+    // cannot expand past the limit.
+    const encoding = String(proxyRes.headers['content-encoding'] || 'identity').trim().toLowerCase();
+    let decoded = body;
+    let opaque = false; // an encoding we cannot decode: pass it through untouched
+    if (encoding !== 'identity' && body.length > 0) {
+        const decode = DECODERS[encoding];
+        if (decode) {
+            decoded = decode(body, { maxOutputLength: security.config.maxResponseBytes });
+        } else {
+            opaque = true;
+        }
+    }
+
+    Object.entries(proxyRes.headers).forEach(([name, value]) => {
+        if (!NOT_COPIED_HEADERS.has(name) || (opaque && name === 'content-encoding')) {
+            res.setHeader(name, value);
+        }
+    });
     security.scrubResponseHeaders(res);
 
     const contentType = proxyRes.headers['content-type'];
 
     // Detect JSON
-    if (contentType && contentType.includes('application/json')) {
+    if (!opaque && contentType && contentType.includes('application/json') && decoded.length > 0) {
+        let toonBody;
         try {
-            const rawBody = responseBuffer.toString('utf8');
-            const jsonBody = JSON.parse(rawBody);
-
+            const jsonBody = JSON.parse(decoded.toString('utf8'));
             logger.debug(`Transforming JSON response for ${req.originalUrl}`);
+            toonBody = encodeToToon(jsonBody);
+        } catch (err) {
+            logger.error('Transformation Failed:', err);
+        }
 
-            // Convert
-            const toonBody = encodeToToon(jsonBody);
-
+        if (toonBody !== undefined) {
             // Cache (only if Redis is connected and the response is shareable)
             if (res.statusCode === 200 && isRedisConnected() &&
                 security.requestIsCacheable(req) && security.responseIsCacheable(proxyRes)) {
@@ -197,17 +237,12 @@ const transformResponse = responseInterceptor(async (responseBuffer, proxyRes, r
             }
 
             res.setHeader('Content-Type', 'text/toon; charset=utf-8');
-            res.removeHeader('content-length');
             res.removeHeader('etag');
-
-            return toonBody;
-        } catch (err) {
-            logger.error('Transformation Failed:', err);
-            return responseBuffer;
+            return res.end(toonBody);
         }
     }
-    return responseBuffer;
-});
+    return res.end(decoded);
+};
 
 const rejectOversized = (proxyRes, req, res) => {
     proxyRes.destroy();
@@ -216,6 +251,47 @@ const rejectOversized = (proxyRes, req, res) => {
     return res.status(502).json({
         error: 'Bad Gateway',
         message: `Upstream response exceeds the ${security.config.maxResponseBytes} byte limit`
+    });
+};
+
+const handleProxyResponse = (proxyRes, req, res) => {
+    // Responses are buffered in memory to be transformed: cap them
+    const limit = security.config.maxResponseBytes;
+    if (Number(proxyRes.headers['content-length']) > limit) {
+        return rejectOversized(proxyRes, req, res);
+    }
+
+    const chunks = [];
+    let received = 0;
+    let aborted = false;
+
+    proxyRes.on('data', (chunk) => {
+        if (aborted) return;
+        received += chunk.length;
+        if (received > limit) {
+            aborted = true;
+            rejectOversized(proxyRes, req, res);
+            return;
+        }
+        chunks.push(chunk);
+    });
+
+    proxyRes.on('error', (err) => {
+        if (aborted) return;
+        aborted = true;
+        logger.error('Upstream response error:', err);
+        if (res.headersSent) return res.destroy();
+        return res.status(502).json({ error: 'Bad Gateway', message: 'Upstream response failed' });
+    });
+
+    proxyRes.on('end', () => {
+        if (aborted || res.headersSent) return;
+        sendUpstreamResponse(Buffer.concat(chunks), proxyRes, req, res).catch((err) => {
+            logger.error('Failed to send upstream response:', err);
+            if (res.headersSent) return res.destroy();
+            // a decoder over its output cap ends up here as well
+            return res.status(502).json({ error: 'Bad Gateway', message: 'Invalid or oversized upstream response' });
+        });
     });
 };
 
@@ -231,19 +307,7 @@ const proxyOptions = {
             // real payload; the client still gets compression from this server.
             proxyReq.removeHeader('accept-encoding');
         },
-        proxyRes: (proxyRes, req, res) => {
-            // Responses are buffered in memory to be transformed: cap them
-            const limit = security.config.maxResponseBytes;
-            if (Number(proxyRes.headers['content-length']) > limit) {
-                return rejectOversized(proxyRes, req, res);
-            }
-            let received = 0;
-            proxyRes.on('data', (chunk) => {
-                received += chunk.length;
-                if (received > limit && !proxyRes.destroyed) rejectOversized(proxyRes, req, res);
-            });
-            return transformResponse(proxyRes, req, res);
-        },
+        proxyRes: handleProxyResponse,
         error: (err, req, res) => {
             logger.error('Proxy Error:', err);
             // `res` is a raw socket for upgrade requests
