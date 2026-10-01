@@ -69,6 +69,7 @@
       <div class="samples">Load a sample:
         <button class="btn small" type="button" data-sample="users">Users table</button>
         <button class="btn small" type="button" data-sample="order">Nested order</button>
+        <button class="btn small" type="button" data-sample="nested">Nested rows</button>
         <button class="btn small" type="button" data-sample="mixed">Mixed list</button>
         <button class="btn small" type="button" data-sample="metrics">Time series</button>
       </div>
@@ -88,8 +89,6 @@
             <select id="opt-delimiter"><option value="comma">comma ,</option><option value="tab">tab ⇥</option><option value="pipe">pipe |</option></select></div>
           <div class="field"><label class="lbl" for="opt-indent">Indent</label>
             <select id="opt-indent"><option value="2">2 spaces</option><option value="4">4 spaces</option></select></div>
-          <div class="field"><label class="lbl" for="opt-folding">Key folding</label>
-            <select id="opt-folding"><option value="off">off</option><option value="safe">safe</option></select></div>
           <button class="btn primary" type="submit" id="encode-btn">Convert</button>
           <button class="btn" type="button" id="format-btn">Format JSON</button>
           <button class="btn" type="button" id="copy-btn" disabled>Copy TOON</button>
@@ -140,7 +139,7 @@
       <thead><tr><th>Request</th><th>What it does</th><th>Returns</th></tr></thead>
       <tbody>
         <tr><td><code>GET /&lt;any path&gt;</code></td><td>Proxied to the upstream API. Methods allowed on this instance: {{ALLOWED_METHODS}}. JSON responses are converted to TOON; anything else passes through unchanged. Successful GETs are cached for {{CACHE_TTL}} s, unless the request carries credentials. Upstream responses over {{MAX_RESPONSE_MB}} MB are refused.</td><td><code>text/toon</code></td></tr>
-        <tr><td><code>POST {{PREFIX}}/encode</code></td><td>Converts the JSON document in the request body to TOON. Body up to 256 KB. Optional query: <code>delimiter=comma|tab|pipe</code>, <code>indent=1…8</code>, <code>keyFolding=off|safe</code>.</td><td><code>text/toon</code></td></tr>
+        <tr><td><code>POST {{PREFIX}}/encode</code></td><td>Converts the JSON document in the request body to TOON. Body up to 256 KB. Optional query: <code>delimiter=comma|tab|pipe</code>, <code>indent=1…8</code>.</td><td><code>text/toon</code></td></tr>
         <tr><td><code>GET /health</code></td><td>Liveness and cache state. <code>degraded</code> means Redis is down and requests are served uncached. Add <code>?strict=1</code> for a 503 in that case.</td><td><code>application/json</code></td></tr>
         <tr><td><code>GET {{PREFIX}}/info</code></td><td>Version, upstream, cache TTL, rate limit and endpoint list for this instance.</td><td><code>application/json</code></td></tr>
         <tr><td><code>GET /</code></td><td>This page. Non-browser clients (curl, agents) get a plain-text usage summary instead.</td><td><code>text/html</code> · <code>text/plain</code></td></tr>
@@ -194,8 +193,9 @@ prompt = f"Here are the users in TOON format:\n\n{data}\n\nWho works at Romaguer
     <h4>Why TOON</h4>
     <p class="prose">JSON repeats every key on every row and spends tokens on braces and quotes. TOON states the
       field names once, like a CSV header, then lists the rows, and keeps an explicit length so a model can check
-      it read everything. Uniform arrays of objects, the usual shape of API results, shrink the most; deeply
-      nested or irregular data shrinks less. It is lossless: TOON decodes back to the same JSON. See the
+      it read everything. Uniform arrays of objects, the usual shape of API results, shrink the most, including rows
+      with nested objects, which TOON v4 flattens into grouped columns such as <code>geo{lat,lng}</code>; irregular data
+      shrinks less. It is lossless: TOON decodes back to the same JSON. See the
       <a href="https://github.com/toon-format/spec" rel="noopener">specification</a> and
       <a href="https://toonformat.dev/" rel="noopener">toonformat.dev</a>.</p>
   </div>

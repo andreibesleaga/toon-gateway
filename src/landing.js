@@ -149,11 +149,10 @@ function createLanding({ upstreamUrl, cacheTtl, security, clientIp, isRedisConne
                 }
                 options.indent = indent;
             }
-            if (req.query.keyFolding !== undefined) {
-                if (!['off', 'safe'].includes(req.query.keyFolding)) {
-                    return res.status(400).json({ error: 'Bad Request', message: 'keyFolding must be one of: off, safe' });
-                }
-                options.keyFolding = req.query.keyFolding;
+            // TOON v4 removed key folding; the library ignores the option, so a
+            // request for it must fail rather than silently return unfolded output
+            if (req.query.keyFolding !== undefined && req.query.keyFolding !== 'off') {
+                return res.status(400).json({ error: 'Bad Request', message: 'keyFolding is not supported: key folding was removed in TOON v4' });
             }
 
             try {

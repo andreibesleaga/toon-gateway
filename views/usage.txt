@@ -20,7 +20,6 @@ ENDPOINTS
                             passes through. Successful GETs are cached {{CACHE_TTL}} s.
   POST {{PREFIX}}/encode    Convert the JSON request body to TOON (max 256 KB).
                             Query: delimiter=comma|tab|pipe  indent=1..8
-                                   keyFolding=off|safe
   GET  /health              {"status":"healthy|degraded","redis":...}
                             ?strict=1 returns 503 when the cache is down.
   GET  {{PREFIX}}/info      Version, upstream, cache TTL, limits (JSON).

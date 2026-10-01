@@ -21,7 +21,7 @@ curl -X POST https://toon-gateway.up.railway.app/__gateway/encode \
 ## Features
 
 - 🔄 **Automatic JSON to TOON transformation** using official reference implementation
-- ✅ **100% TOON Spec v3.3 compliant** (389/389 tests passing)
+- ✅ **100% TOON Spec v4.1 compliant** (538/538 tests passing)
 - ⚡ **Redis-based caching** for improved performance
 - 🔒 **Security hardening** with Helmet and rate limiting
 - 📊 **Comprehensive logging** with Winston
@@ -134,7 +134,7 @@ The gateway's own endpoints live at `/` and under the reserved `/__gateway` pref
 | Endpoint | Description |
 |----------|-------------|
 | `GET /` | Docs page with a live JSON → TOON converter. Clients that do not ask for `text/html` (curl, agents) get a plain-text usage summary |
-| `POST /__gateway/encode` | Converts the JSON request body (max 256 KB) to TOON. Query options: `delimiter=comma\|tab\|pipe`, `indent=1..8`, `keyFolding=off\|safe` |
+| `POST /__gateway/encode` | Converts the JSON request body (max 256 KB) to TOON. Query options: `delimiter=comma\|tab\|pipe`, `indent=1..8` |
 | `GET /__gateway/info` | Version, upstream, cache TTL, rate limits and limits of this instance (JSON) |
 
 ```bash
@@ -214,21 +214,21 @@ docker build -t toon-gateway .
 
 ## TOON Format Conformance
 
-This gateway uses the official [@toon-format/toon](https://www.npmjs.com/package/@toon-format/toon) reference implementation and passes **100% of the TOON v3.3 specification tests** (`@toon-format/toon` 2.3.1 against the spec's `v3.3.0` fixtures):
-If running tests, you need to have also downloaded the official spec with fixtures tests (https://github.com/toon-format/spec) into `../spec`, checked out at the tag the library targets: `git -C ../spec checkout v3.3.0`.
+This gateway uses the official [@toon-format/toon](https://www.npmjs.com/package/@toon-format/toon) reference implementation and passes **100% of the TOON v4.1 specification tests** (`@toon-format/toon` 4.1.1 against the spec's `v4.1.1` fixtures):
+If running tests, you need to have also downloaded the official spec with fixtures tests (https://github.com/toon-format/spec) into `../spec`, checked out at the tag the library targets: `git -C ../spec checkout v4.1.1`.
 
-- **153/153 encode tests** (JSON → TOON)
-- **236/236 decode tests** (TOON → JSON)
-- **389/389 total tests passing**
+- **179/179 encode tests** (JSON → TOON)
+- **359/359 decode tests** (TOON → JSON)
+- **538/538 total tests passing**
 
 Conformance testing validates:
 - Primitive value encoding/decoding
 - Object and array transformations
-- Tabular array format for uniform objects
+- Tabular array format for uniform objects, including nested field groups and keyed tabular objects
 - List format for non-uniform structures
 - Delimiter support (comma, tab, pipe)
 - String quoting and escaping rules
-- Key folding and path expansion
+- Comment lines
 - Strict mode validation
 - Whitespace handling
 

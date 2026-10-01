@@ -35,8 +35,7 @@ function getToon() {
  * @param {object} options - Encoding options
  * @param {string} options.delimiter - Delimiter: ',' (default), '\t', or '|'
  * @param {number} options.indent - Indentation spaces (default: 2)
- * @param {string} options.keyFolding - Key folding mode: 'off' or 'safe' (default: 'off')
- * @param {number} options.flattenDepth - Max depth for key folding (default: Infinity)
+ * @param {Function} options.replacer - Transforms or omits values while encoding
  * @returns {string} TOON formatted string
  */
 function encodeToToon(data, options = {}) {
@@ -48,8 +47,7 @@ function encodeToToon(data, options = {}) {
  * @param {string} toonString - TOON formatted string
  * @param {object} options - Decoding options
  * @param {boolean} options.strict - Enable strict mode validation (default: true)
- * @param {string} options.expandPaths - Path expansion mode: 'off' or 'safe' (default: 'off')
- * @param {number} options.indentSize - Expected indentation size (default: 2)
+ * @param {number} options.indent - Expected indentation size (default: 2)
  * @returns {any} JavaScript value
  */
 function decodeFromToon(toonString, options = {}) {

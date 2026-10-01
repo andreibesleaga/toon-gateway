@@ -25,6 +25,11 @@
                 notes: null
             }
         },
+        nested: [
+            { id: 101, city: 'Lisbon', geo: { lat: 38.72, lng: -9.14 }, temp: { min: 14, max: 23 } },
+            { id: 102, city: 'Oslo', geo: { lat: 59.91, lng: 10.75 }, temp: { min: 3, max: 11 } },
+            { id: 103, city: 'Nairobi', geo: { lat: -1.29, lng: 36.82 }, temp: { min: 13, max: 26 } }
+        ],
         mixed: [
             1,
             'two',
@@ -101,10 +106,8 @@
         var q = [];
         var d = $('opt-delimiter').value;
         var i = $('opt-indent').value;
-        var k = $('opt-folding').value;
         if (d !== 'comma') q.push('delimiter=' + d);
         if (i !== '2') q.push('indent=' + i);
-        if (k !== 'off') q.push('keyFolding=' + k);
         return PREFIX + '/encode' + (q.length ? '?' + q.join('&') : '');
     }
 
@@ -173,7 +176,7 @@
     }
 
     $('encode-form').addEventListener('submit', function (e) { e.preventDefault(); convert(); });
-    ['opt-delimiter', 'opt-indent', 'opt-folding'].forEach(function (id) {
+    ['opt-delimiter', 'opt-indent'].forEach(function (id) {
         $(id).addEventListener('change', function () { if (jsonIn.value.trim()) convert(); });
     });
     jsonIn.addEventListener('keydown', function (e) {
