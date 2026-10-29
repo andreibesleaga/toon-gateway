@@ -4,6 +4,10 @@
 
 Please report security issues privately through GitHub: https://github.com/andreibesleaga/toon-gateway/security/advisories/new. Do not open a public issue for a vulnerability. You should get a reply within a few days.
 
+## Supported versions
+
+Fixes go into the latest release only.
+
 ## What the gateway does
 
 | Area | Measure |
