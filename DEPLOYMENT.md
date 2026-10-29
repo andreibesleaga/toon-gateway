@@ -68,6 +68,10 @@ One-time setup: a Railway **project token** for the production environment, stor
 gh secret set RAILWAY_TOKEN -R andreibesleaga/toon-gateway    # paste the token when prompted
 ```
 
+To rotate the token: create a new project token in the same place (Settings → Tokens → `production`), run the `gh secret set` command above with the new value, then delete the old token in Railway.
+Rotate it whenever someone with access leaves or the token may have been exposed.
+Check the next run of the Deploy workflow (GitHub → Actions) to confirm the new token works.
+
 Switches (no file edits):
 
 ```bash
