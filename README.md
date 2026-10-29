@@ -73,7 +73,7 @@ Environment variables in `.env`:
 |----------------|------------------------|----------------------------------------|
 | `PORT`         | Server port            | `3000`                                 |
 | `UPSTREAM_URL` | Backend API URL        | `https://jsonplaceholder.typicode.com` |
-| `REDIS_URL`    | Redis connection URL   | `redis://redis-cache:6379`             |
+| `REDIS_URL`    | Redis connection URL (`env.local` and `docker-compose.yml` set `redis://redis-cache:6379`, the compose service) | `redis://localhost:6379` |
 | `CACHE_TTL`    | Cache TTL in seconds   | `300`                                  |
 | `NODE_ENV`     | Environment (prod/dev) | `development`                          |
 | `LOG_LEVEL`    | Logging level          | `info`                                 |
@@ -90,6 +90,8 @@ Environment variables in `.env`:
 | `TRUST_PROXY` | Proxy hops trusted for the client IP (`X-Forwarded-For`). `1` behind a platform edge or load balancer, `0` when exposed directly | `1` |
 | `CLIENT_IP_HEADER` | Header your platform sets to the real client IP (e.g. `x-real-ip` on Railway); rate limits key on it. Only use a header the platform always overwrites | unset (uses `TRUST_PROXY`) |
 | `LOG_TO_FILES` | Also write `logs/*.log` | `true` in development, `false` in production |
+| `LOG_DIR` | Directory for the log files when `LOG_TO_FILES` is on | `logs` |
+| `DEBUG_CLIENT_IP` | `true` adds a `debug` block with the forwarding headers to `GET /__gateway/info`; for tuning `CLIENT_IP_HEADER` and `TRUST_PROXY`, see [DEPLOYMENT.md](DEPLOYMENT.md#client-ip-and-rate-limiting) | unset |
 
 `REDIS_URL` is optional: without Redis the gateway keeps proxying and transforming, uncached.
 
@@ -109,6 +111,7 @@ curl http://localhost:3000/posts/1
 - `X-Cache: MISS` - Response fetched from upstream
 - `X-Cache: BYPASS` - Request carried credentials (`Authorization`, `Cookie`, `X-API-Key`), shared cache not used
 - `X-Cache: UNAVAILABLE` - Redis is down, response served uncached
+- `X-Cache: ERROR` - Redis is connected but the cache read failed, response fetched from upstream
 - `Content-Type: text/toon; charset=utf-8`
 
 ### Health Check
@@ -172,13 +175,15 @@ Client → TOON Gateway → Redis Cache
       JSON → TOON Transform
 ```
 
+Diagrams of the system and its modules: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Security Features
 
 - **Helmet.js** - Security headers
 - **Rate Limiting** - 100 requests per 15 minutes per IP, plus a burst limit (30 per minute) and a tighter limit on the encode endpoint; all configurable
-- **CORS** protection
+- **CORS** - the upstream's `Access-Control-Allow-Credentials` header is removed; its other CORS headers pass through unchanged
 - **Content Security Policy**
-- **XSS Protection**
+- **XSS** - the CSP below is the protection; Helmet sends `X-XSS-Protection: 0`, which switches off the obsolete browser filter
 - **Strict CSP** - `default-src 'none'`, no inline scripts or styles, `frame-ancestors 'none'`, HSTS, `Permissions-Policy`
 - **Cache isolation** - requests with credentials and upstream responses marked `private`/`no-store`/`Set-Cookie` are never stored in the shared cache
 - **Upstream header scrubbing** - `Set-Cookie`, `Server`, `Via`, `X-Powered-By`, `NEL`/`Report-To`, `Alt-Svc` and similar are removed from proxied responses

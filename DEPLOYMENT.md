@@ -96,7 +96,7 @@ curl https://toon-gateway.up.railway.app/health
 
 A deployment only replaces the running one after `/health` answers 200, so a broken build never takes the site down.
 
-To deploy automatically on every push to `main` instead, connect the repo once in the Railway dashboard: service `toon-gateway` → Settings → Source → Connect Repo → `andreibesleaga/toon-gateway`, branch `main`. Until the changes in this working tree are pushed, GitHub `main` is older than what is running.
+To deploy automatically on every push to `main` instead, connect the repo once in the Railway dashboard: service `toon-gateway` → Settings → Source → Connect Repo → `andreibesleaga/toon-gateway`, branch `main`.
 
 ## Operating
 

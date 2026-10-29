@@ -18,7 +18,7 @@ Please report security issues privately through GitHub: https://github.com/andre
 | Upstream headers | `Set-Cookie`, `Server`, `Via`, `X-Powered-By`, `NEL`, `Report-To`, `Reporting-Endpoints`, `Alt-Svc`, and the upstream's own HSTS, CSP and frame policy are removed from proxied responses, so the upstream cannot set cookies, enable reporting or change transport policy on the gateway's origin |
 | Errors | In production, responses never include stack traces or internal messages |
 | Container | Non-root user, production dependencies only, image health check |
-| Dependencies | `npm audit` reports no known vulnerabilities and CI fails on any high-severity advisory; Dependabot security updates are enabled and Dependabot keeps the CI actions current |
+| Dependencies | CI runs `npm audit --omit=dev --audit-level=high` on every push (a warning by default, blocking when `STRICT_CI=true`); Dependabot security updates are enabled and Dependabot keeps the CI actions current |
 | Tests | CI runs an end-to-end suite against a local stub upstream covering these measures (headers, limits, cache isolation, header scrubbing, timeouts, size caps) on every push and pull request |
 
 ## What it does not do
