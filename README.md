@@ -32,7 +32,7 @@ curl -X POST https://toon-gateway.up.railway.app/__gateway/encode \
 
 ### Prerequisites
 
-- Node.js 20+, Docker
+- Node.js 22+, Docker
 - Redis (included in docker-compose)
 
 ### Installation
@@ -227,10 +227,10 @@ GitHub Actions, each switchable without editing files:
 
 | Workflow | Runs | What it does | Pause automatic runs | Run manually |
 |---|---|---|---|---|
-| [CI](.github/workflows/ci.yml) | Every push and pull request | End-to-end tests on Node 20/22/24 with Redis, `npm audit`, TOON spec conformance, Docker image build and health check | `gh variable set CI_ENABLED --body false` | `gh workflow run ci.yml` |
+| [CI](.github/workflows/ci.yml) | Every push and pull request | End-to-end tests on Node 22/24 with Redis, `npm audit`, TOON spec conformance, Docker image build and health check | `gh variable set CI_ENABLED --body false` | `gh workflow run ci.yml` |
 | [Deploy](.github/workflows/deploy.yml) | After CI passes on `main` | Deploys the tested commit to Railway, then checks the live health, version and encoder | `gh variable set AUTO_DEPLOY --body false` | `gh workflow run deploy.yml` (add `-f ref=<branch\|tag\|sha>` for another ref) |
 
-CI is permissive by default: only the end-to-end tests on Node 22 (the production runtime) can fail it and block a deploy; Node 20/24, the audit, conformance and the Docker check report warnings. `gh variable set STRICT_CI --body true` makes every check blocking. Without the `RAILWAY_TOKEN` secret, automatic deploys skip with a notice instead of failing.
+CI is permissive by default: only the end-to-end tests on Node 22 (the production runtime) can fail it and block a deploy; Node 24, the audit, conformance and the Docker check report warnings. `gh variable set STRICT_CI --body true` makes every check blocking. Without the `RAILWAY_TOKEN` secret, automatic deploys skip with a notice instead of failing.
 
 Undo any switch with `gh variable delete <NAME>`; turn a workflow off entirely with `gh workflow disable <file>` (and back on with `gh workflow enable <file>`). Setup of the `RAILWAY_TOKEN` secret: [DEPLOYMENT.md](DEPLOYMENT.md#automatic-deploys-github-actions).
 

@@ -5,7 +5,7 @@
 #
 # Permissive by default: only the end-to-end tests on Node 22 (the version
 # production runs) can fail the workflow and so block a deploy. Everything else
-# (Node 20/24, npm audit, spec conformance, Docker image) reports a warning.
+# (Node 24, npm audit, spec conformance, Docker image) reports a warning.
 #
 # Switches (repository variables, no file edits):
 #   gh variable set CI_ENABLED --body false   pause automatic runs (manual runs still work)
@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22, 24]
+        node: [22, 24]
     services:
       redis:
         image: redis:7-alpine
