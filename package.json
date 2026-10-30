@@ -5,7 +5,7 @@
   "description": "Reverse proxy transforming JSON to TOON format",
   "main": "src/app.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "start": "node src/app.js",

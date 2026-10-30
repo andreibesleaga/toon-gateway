@@ -157,6 +157,6 @@ docker run -p 3000:3000 \
   toon-gateway
 ```
 
-Without Docker: Node.js 20 or newer, `npm install --omit=dev`, `NODE_ENV=production node src/app.js`.
+Without Docker: Node.js 22 or newer, `npm install --omit=dev`, `NODE_ENV=production node src/app.js`.
 
 Behind your own reverse proxy or load balancer set `TRUST_PROXY` to the number of hops (or `CLIENT_IP_HEADER` to the header your proxy sets) and verify it with `clientIp` as above. Exposed directly to the internet, set `TRUST_PROXY=0`.
